@@ -27,6 +27,7 @@ parser.add_argument('--hrcsites', help='Download from ftp://ngs.sanger.ac.uk/pro
 parser.add_argument('--hrccheck', help='Downlaod from http://www.well.ox.ac.uk/~wrayner/tools/#Checking', required=True)
 
 # DEFAULTS
+parser.add_argument('--out_vcf_prefix', help='the prefix for the final vcf files', required=False, default="final")
 parser.add_argument('--sort_buffer', help='Buffer size for sort program', required=False, default="4G")
 parser.add_argument('--plink', help='plink executable location', required=False, default="plink")
 parser.add_argument('--plink_threads', help='Number of threads for plink', required=False, default=1, type=int)
@@ -63,6 +64,7 @@ refseq = args.refseq
 hrcsites = args.hrcsites
 hrccheck = args.hrccheck
 
+out_vcf_prefix = args.out_vcf_prefix
 sort_buffer = args.sort_buffer
 plink = args.plink
 plink_threads = args.plink_threads
@@ -230,6 +232,20 @@ for i in range(0,23):
 	flip_ref_alt_entries.append(flip_ref_alt_entry)
 	make_entries.append(flip_ref_alt_entry)
 
+
+final_vcfs = []
+for i in range(0,23):
+	target = "{0}/final.vcf.chr{1}.OK".format(outdir_temp,i + 1)
+	in_vcf = flip_ref_alt_vcf_out[i]
+	out_vcf = "{outdir}/{out_vcf_prefix}.chr{chr}.vcf.gz".format( outdir=outdir, out_vcf_prefix=out_vcf_prefix, chr=i + 1)
+	final_vcfs.append(out_vcf)
+	final_cmd = "mv {in_vcf} {out_vcf}; mv {in_vcf}.tbi {out_vcf}.tbi".format(in_vcf=in_vcf,out_vcf=out_vcf)
+	final_entry = MakeEntry(target, [final_cmd], [ flip_ref_alt_entries[i] ], comment="Rename final vcfs")
+	make_entries.append(final_entry)
+	
+######
+######
+
 #########
 # Clean-up
 #########
@@ -242,7 +258,7 @@ clean_entry = MakeEntry("clean", [ clean_cmd ], [], comment ="Clean command")
 ###
 out_vcf_file_list = open( "{0}/vcf_list.tsv".format(outdir), "w")
 for i in range(0,23):
-	out_vcf_file_list.write("chr{chr}\t{vcf}\n".format(chr=i+1,vcf=flip_ref_alt_vcf_out[i]))
+	out_vcf_file_list.write("chr{chr}\t{vcf}\n".format(chr=i+1,vcf=final_vcfs[i]))
 out_vcf_file_list.close()
 	
 ####
