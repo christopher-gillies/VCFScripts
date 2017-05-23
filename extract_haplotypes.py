@@ -261,6 +261,7 @@ def create_haplotypes(marker_ids,vcf_file,out_file,dbsnp_index=None):
 		
 	out_file_handle.close()
 	print "Complete!"
+	
 if __name__ == '__main__':
 	main()
 		
