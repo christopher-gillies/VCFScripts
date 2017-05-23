@@ -93,8 +93,24 @@ vcf_files_map = read_list_file(vcf_files_list)
 bcf_reference_map = read_list_file(bcf_reference_panel_list)
 m3vcf_reference_map = read_list_file(m3vcf_reference_panel_list)
 
-
+#
+# Sort Chromosomes
+#
 chroms = vcf_files_map.keys()
+def chrom_key(x):
+	num = re.match("(chr)?(.+)",x).group(2)
+	if num == "X":
+		return 23
+	elif num == "Y":
+		return 24
+	elif num in ["M","MT"]:
+		return 25
+	else:
+		return int(num)
+
+sorted(chroms,key=chrom_key)
+
+
 
 ####
 # Validate keys
@@ -136,13 +152,14 @@ for chrom in chroms:
 	all_entries.append(minimac_entry)
 	
 	#Rename final vcfs
-	final_vcf = ""
-	rename_cmd = "mv {vcf} {final_vcf}".format(vcf=minimac_out_vcf,final_vcf=final_vcf)
+	final_vcf = "{outdir}/{out_vcf_prefix}.chr{chrom}.vcf.gz".format(outdir=outdir,out_vcf_prefix=out_vcf_prefix,chrom=chrom)
+	#Only execute move if vcf exists. This is useful in the case the pipeline crashes during tabix
+	rename_cmd = "([ -f {vcf} ] && mv {vcf} {final_vcf}) || [ -f {final_vcf} ]".format(vcf=minimac_out_vcf,final_vcf=final_vcf)
 	tabix_cmd = "{tabix} -pvcf {final_vcf}".format(tabix=tabix,final_vcf=final_vcf)
 	final_vcfs[chrom] = final_vcf
 	rename_target = "{outdir}/final.chr{chrom}.OK".format(outdir=outdir,chrom=chrom)
 	rename_entry = MakeEntry(rename_target, [rename_cmd,tabix_cmd], [minimac_entry], comment="Rename and finalize chr{chrom} vcf".format(chrom=chrom))
-	
+	all_entries.append(rename_entry)
 
 
 ###
