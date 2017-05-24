@@ -160,8 +160,9 @@ def create_haplotypes(marker_ids,vcf_file,out_file,dbsnp_index=None):
 		if marker.startswith("rs"):
 			raise NotImplementedError("Only chr:pos supported currently")
 		else:
-			chrom,pos = marker.split(":")
-			pos = int(pos)
+			match = re.match("(chr)?([^:]+):(\d+)(:[ACTG]+[:][ACTG]+)",marker)
+			chrom = match.group(2)
+			pos = int(match.group(3))
 			chr_pos = ChrPos(chrom,pos)
 			chr_pos_vals.append(chr_pos)
 	
@@ -178,12 +179,14 @@ def create_haplotypes(marker_ids,vcf_file,out_file,dbsnp_index=None):
 	print "Input appears valid..."
 	print "Reading genotype data at each site.."
 	gts_for_markers = dict()
+	marker_keys = []
 	sample_ids = [x for x in vcf_file_handle.header.samples ]
 	for chr_pos in chr_pos_vals:
 		for rec in vcf_file_handle.fetch(chr_pos.chrom, chr_pos.pos - 1, chr_pos.pos):
 			marker_key = "{0}:{1}:{2}:{3}".format(rec.chrom,rec.pos,rec.ref,"_".join(rec.alts))
 			print "Reading Marker: {0}".format(marker_key)
 			if rec.pos == chr_pos.pos:
+				marker_keys.append(marker_key)
 				marker_dict = dict()
 				samples = rec.samples
 				for i in range(0,len(samples)):
@@ -194,7 +197,7 @@ def create_haplotypes(marker_ids,vcf_file,out_file,dbsnp_index=None):
 						marker_dict[sample.name] = [".", "."]
 			gts_for_markers[marker_key] = marker_dict
 	vcf_file_handle.close()
-	marker_keys = gts_for_markers.keys()
+	#marker_keys = gts_for_markers.keys()
 	
 	###
 	# Discover haplotypes
