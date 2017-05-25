@@ -64,11 +64,46 @@ def main():
 	window = args.window
 	hap_thresh = args.hap_thresh
 	min_maf = args.maf
+	samples_file = args.samples_file
 	
-	####
+	samples_to_use = dict()
+	samples_indicies = []
+	
+	#read samples from smaple id file if provided
+	if samples_file is not None:
+		samples_file_h = open(samples_file,"r")
+		for line in samples_file_h:
+			line = line.rstrip()
+			samples_to_use[line] = 0
+		
+		samples_file_h.close()
+	
+	
 	# 
 	####
 	vcf_file_handle = VariantFile(vcf_file)
+	
+	
+	######
+	# FIND OVERLAPPING SAMPLES
+	######
+	
+	if len(samples_to_use) == 0:
+		samples_indicies = range(0,len(vcf_file_handle.header.samples))
+	else:
+		#create list of samples_indicies
+		for i in range(0,len(vcf_file_handle.header.samples)):
+			sample_id = vcf_file_handle.header.samples[i]
+			if sample_id in samples_to_use:
+				samples_indicies.append(i)
+				samples_to_use[sample_id]  = 1
+		
+		for sample_id, val in samples_to_use.iteritems():
+			if val == 0:
+				print "Sample {0} not found!".format(sample_id)
+	
+	print "Using {0:d} of {1:d} samples...".format(len(samples_indicies),len(vcf_file_handle.header.samples))			
+				
 	out_file_h = open(out_file,"w")
 	out_file_h.write("MARKER,LD_BLOCK\n")
 	for marker in markers:
@@ -90,7 +125,7 @@ def main():
 			samples = variant.samples
 			non_missing_sample_count = 0.0
 			ac = 0.0
-			for i in range(0,len(samples)):
+			for i in samples_indicies:
 				sample = samples[i]
 				allele1 = sample["GT"][0]
 				allele2 = sample["GT"][1]
@@ -142,7 +177,7 @@ def main():
 		for i in range(marker_index,len(variants_to_keep) - 1):
 			var_a = variants_to_keep[i]
 			var_b = variants_to_keep[i + 1]
-			var_gts = get_gts_from_variants(var_a,var_b)
+			var_gts = get_gts_from_variants(var_a,var_b,samples_indicies)
 			counts = create_four_gamete_rule_counts(var_gts)
 			min_freq = four_gamete_rule(counts)
 			
@@ -162,7 +197,7 @@ def main():
 		for i in back_indices:
 			var_a = variants_to_keep[i]
 			var_b = variants_to_keep[i - 1]
-			var_gts = get_gts_from_variants(var_a,var_b)
+			var_gts = get_gts_from_variants(var_a,var_b,samples_indicies)
 			counts = create_four_gamete_rule_counts(var_gts)
 			min_freq = four_gamete_rule(counts)
 			
@@ -221,12 +256,12 @@ def create_four_gamete_rule_counts(var_gts):
 	counts = (n00,n01,n02,n10,n11,n12,n20,n21,n22)
 	return counts
 	
-def get_gts_from_variants(var_a,var_b):
+def get_gts_from_variants(var_a,var_b,samples_indicies):
 	var_a_gts = []
 	var_b_gts = []
 	
 	samples_a = var_a.samples
-	for i in range(0,len(samples_a)):
+	for i in samples_indicies:
 		gt = None
 		sample = samples_a[i]
 		allele1 = sample["GT"][0]
@@ -239,7 +274,7 @@ def get_gts_from_variants(var_a,var_b):
 		var_a_gts.append(gt)
 		
 	samples_b = var_b.samples
-	for i in range(0,len(samples_b)):
+	for i in samples_indicies:
 		gt = None
 		sample = samples_b[i]
 		allele1 = sample["GT"][0]
@@ -304,6 +339,7 @@ def process_input():
 	parser.add_argument('--out_file', help='the location of the program output', required=True)
 	parser.add_argument('--markers', help='A list of CHR:POS to define haplotype blocks for', nargs='+', type=str, required=True)
 	
+	parser.add_argument('--samples_file', help='Only use samples in the file provided (1 SAMPLE_ID per line)', type=str, required=False, default=None)
 	parser.add_argument('--window', help='The window size in base pairs', type=int, required=False, default=50000)
 	parser.add_argument('--hap_thresh', help='All haplotypes with a frequency greater than --hap_thresh will be counted', type=float, required=False, default=0.01)
 	parser.add_argument('--maf', help='Only consider variants with an allele frquency greater than --maf', type=float, required=False, default=0.05)

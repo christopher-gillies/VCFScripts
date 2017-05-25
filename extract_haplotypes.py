@@ -160,7 +160,7 @@ def create_haplotypes(marker_ids,vcf_file,out_file,dbsnp_index=None):
 		if marker.startswith("rs"):
 			raise NotImplementedError("Only chr:pos supported currently")
 		else:
-			match = re.match("(chr)?([^:]+):(\d+)(:[ACTG]+[:][ACTG]+)",marker)
+			match = re.match("(chr)?([^:]+):(\d+)(:[ACTG]+[:][ACTG]+)?",marker)
 			chrom = match.group(2)
 			pos = int(match.group(3))
 			chr_pos = ChrPos(chrom,pos)
