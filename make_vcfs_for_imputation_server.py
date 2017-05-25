@@ -103,13 +103,13 @@ minus_strand_file = "{0}/minus.snp.ids".format(outdir_temp)
 minus_strand_cmd = "cat {strandfile} | perl -lane 'print $$F[0] if $$F[4] eq \"-\"' > {minus_strand_file}".format(strandfile=strandfile, minus_strand_file=minus_strand_file)
 
 bfile_plink_geno_prefix = "{0}/extract.geno".format(outdir_temp)
-extract_snps_geno_filter_cmd = "{plink} --bfile {bfile} --geno {geno} --extract {snp_id_file} --make-bed --out {out} --threads {plink_threads}".format(plink=plink, bfile=bfile, geno=geno, snp_id_file=snp_id_file, out=bfile_plink_geno_prefix,plink_threads=plink_threads)
+extract_snps_geno_filter_cmd = "{plink} --bfile {bfile} --geno {geno} --extract {snp_id_file} --make-bed --out {out} --threads {plink_threads} --allow-extra-chr".format(plink=plink, bfile=bfile, geno=geno, snp_id_file=snp_id_file, out=bfile_plink_geno_prefix,plink_threads=plink_threads)
 
 bfile_plink_geno_pos_ind_prefix = "{0}/extract.geno.pos.ind".format(outdir_temp)
-update_pos_ind_cmd = "{plink} --bfile {bfile} --mind {mind} --update-map {strandfile} 3 1 --make-bed --out {out} --threads {plink_threads}".format(plink=plink, bfile=bfile_plink_geno_prefix, strandfile=strandfile, mind=mind, out=bfile_plink_geno_pos_ind_prefix, plink_threads=plink_threads)
+update_pos_ind_cmd = "{plink} --bfile {bfile} --mind {mind} --update-map {strandfile} 3 1 --make-bed --out {out} --threads {plink_threads} --allow-extra-chr".format(plink=plink, bfile=bfile_plink_geno_prefix, strandfile=strandfile, mind=mind, out=bfile_plink_geno_pos_ind_prefix, plink_threads=plink_threads)
 
 bfile_plink_geno_pos_ind_flip_prefix = "{0}/extract.geno.pos.ind.flip".format(outdir_temp)
-flip_cmd = "{plink} --bfile {bfile} --flip {minus_strand_file} --make-bed --freq --out {out} --threads {plink_threads}".format(plink=plink, bfile=bfile_plink_geno_prefix, strandfile=strandfile, minus_strand_file=minus_strand_file, out=bfile_plink_geno_pos_ind_flip_prefix,plink_threads=plink_threads)
+flip_cmd = "{plink} --bfile {bfile} --flip {minus_strand_file} --make-bed --freq --out {out} --threads {plink_threads} --allow-extra-chr".format(plink=plink, bfile=bfile_plink_geno_prefix, strandfile=strandfile, minus_strand_file=minus_strand_file, out=bfile_plink_geno_pos_ind_flip_prefix,plink_threads=plink_threads)
 
 
 pre_hrc_check_entry = MakeEntry(  "{0}/pre_hrc_check.OK".format(outdir_temp), [make_outdir_tmp_cmd, snp_id_command, minus_strand_cmd, extract_snps_geno_filter_cmd, update_pos_ind_cmd, flip_cmd], [], comment = "PRE-HRC CHECKING FORMATING" )
