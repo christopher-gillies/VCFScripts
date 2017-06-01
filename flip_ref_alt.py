@@ -64,9 +64,11 @@ with open(ref_flips,'r') as ref_flips_handle:
 	for line in ref_flips_handle:
 		line = line.rstrip()
 		(info,variant) = re.split("\s",line)
-		variant_key = VariantKey(variant)
-		if variant_key.valid:
-			var_keys[variant_key.old_key] = variant_key
+		#Only handle MismatchRefBase
+		if info == "MismatchRefBase":
+			variant_key = VariantKey(variant)
+			if variant_key.valid:
+				var_keys[variant_key.old_key] = variant_key
 
 sys.stderr.write("Variants to swap: ")
 sys.stderr.write(str(len(var_keys)))
