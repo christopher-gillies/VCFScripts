@@ -20,13 +20,14 @@ print "########################################################"
 parser = argparse.ArgumentParser(description='This program takes a plink genotype file and formats it for the Imputation Server')
 parser.add_argument('--bfile', help='plink formatted binary genotype file prefix (same as plink)', required=True)
 parser.add_argument('--outdir', help='the output directory ', required=True)
-parser.add_argument('--strandfile', help='Download from http://www.well.ox.ac.uk/~wrayner/strand/', required=True)
+parser.add_argument('--strandfile', help='Download from http://www.well.ox.ac.uk/~wrayner/strand/', required=False, default=None)
 parser.add_argument('--checkVCF', help='checkVCF https://github.com/zhanxw/checkVCF', required=True)
 parser.add_argument('--refseq', help='Reference fasta file with checkVCF.py', required=True)
 parser.add_argument('--hrcsites', help='Download from ftp://ngs.sanger.ac.uk/production/hrc/HRC.r1-1/HRC.r1-1.GRCh37.wgs.mac5.sites.tab.gz', required=True)
 parser.add_argument('--hrccheck', help='Downlaod from http://www.well.ox.ac.uk/~wrayner/tools/#Checking', required=True)
 
 # DEFAULTS
+parser.add_argument('--skip_strand', help='ignore strand file', required=False, action="store_true")
 parser.add_argument('--out_vcf_prefix', help='the prefix for the final vcf files', required=False, default="final")
 parser.add_argument('--sort_buffer', help='Buffer size for sort program', required=False, default="4G")
 parser.add_argument('--plink', help='plink executable location', required=False, default="plink")
@@ -36,6 +37,9 @@ parser.add_argument('--flip_ref_alt', help='flip_ref_alt.py executable location'
 parser.add_argument('--mind', help='plink --mind parameter (default 0.05)', type=float, default=0.05)
 parser.add_argument('--geno', help='plink --geno parameter (default 0.05)', type=float, default=0.05)
 args = parser.parse_args()
+
+if not args.skip_strand and args.strandfile == None:
+	raise ValueError("Please specify a strandfile")
 
 print
 
@@ -56,7 +60,8 @@ outdir = args.outdir
 
 if outdir.endswith("/"):
 	outdir = outdir.rstrip("/")
-	
+
+skip_strand = args.skip_strand
 outdir_temp = "{0}/tmp".format(outdir)
 strandfile = args.strandfile
 checkVCF = args.checkVCF
@@ -96,23 +101,38 @@ make_entries = []
 bfile_base = os.path.basename(bfile)
 make_outdir_tmp_cmd = "mkdir -p {0}".format(outdir_temp)
 
-snp_id_file = "{0}/snp.ids".format(outdir_temp)
-snp_id_command = "cat {0} | cut -f1 > {1}".format(strandfile,snp_id_file)
+pre_hrc_check_entry = None
 
-minus_strand_file = "{0}/minus.snp.ids".format(outdir_temp)
-minus_strand_cmd = "cat {strandfile} | perl -lane 'print $$F[0] if $$F[4] eq \"-\"' > {minus_strand_file}".format(strandfile=strandfile, minus_strand_file=minus_strand_file)
+if not skip_strand:
+	snp_id_file = "{0}/snp.ids".format(outdir_temp)
+	snp_id_command = "cat {0} | cut -f1 > {1}".format(strandfile,snp_id_file)
 
-bfile_plink_geno_prefix = "{0}/extract.geno".format(outdir_temp)
-extract_snps_geno_filter_cmd = "{plink} --bfile {bfile} --geno {geno} --extract {snp_id_file} --make-bed --out {out} --threads {plink_threads} --allow-extra-chr".format(plink=plink, bfile=bfile, geno=geno, snp_id_file=snp_id_file, out=bfile_plink_geno_prefix,plink_threads=plink_threads)
+	minus_strand_file = "{0}/minus.snp.ids".format(outdir_temp)
+	minus_strand_cmd = "cat {strandfile} | perl -lane 'print $$F[0] if $$F[4] eq \"-\"' > {minus_strand_file}".format(strandfile=strandfile, minus_strand_file=minus_strand_file)
 
-bfile_plink_geno_pos_ind_prefix = "{0}/extract.geno.pos.ind".format(outdir_temp)
-update_pos_ind_cmd = "{plink} --bfile {bfile} --mind {mind} --update-map {strandfile} 3 1 --make-bed --out {out} --threads {plink_threads} --allow-extra-chr".format(plink=plink, bfile=bfile_plink_geno_prefix, strandfile=strandfile, mind=mind, out=bfile_plink_geno_pos_ind_prefix, plink_threads=plink_threads)
+	bfile_plink_geno_prefix = "{0}/extract.geno".format(outdir_temp)
+	extract_snps_geno_filter_cmd = "{plink} --bfile {bfile} --geno {geno} --extract {snp_id_file} --make-bed --out {out} --threads {plink_threads} --allow-extra-chr".format(plink=plink, bfile=bfile, geno=geno, snp_id_file=snp_id_file, out=bfile_plink_geno_prefix,plink_threads=plink_threads)
 
-bfile_plink_geno_pos_ind_flip_prefix = "{0}/extract.geno.pos.ind.flip".format(outdir_temp)
-flip_cmd = "{plink} --bfile {bfile} --flip {minus_strand_file} --make-bed --freq --out {out} --threads {plink_threads} --allow-extra-chr".format(plink=plink, bfile=bfile_plink_geno_prefix, strandfile=strandfile, minus_strand_file=minus_strand_file, out=bfile_plink_geno_pos_ind_flip_prefix,plink_threads=plink_threads)
+	bfile_plink_geno_pos_ind_prefix = "{0}/extract.geno.pos.ind".format(outdir_temp)
+	update_pos_ind_cmd = "{plink} --bfile {bfile} --mind {mind} --update-map {strandfile} 3 1 --make-bed --out {out} --threads {plink_threads} --allow-extra-chr".format(plink=plink, bfile=bfile_plink_geno_prefix, strandfile=strandfile, mind=mind, out=bfile_plink_geno_pos_ind_prefix, plink_threads=plink_threads)
 
+	bfile_plink_geno_pos_ind_flip_prefix = "{0}/extract.geno.pos.ind.flip".format(outdir_temp)
+	flip_cmd = "{plink} --bfile {bfile} --flip {minus_strand_file} --make-bed --freq --out {out} --threads {plink_threads} --allow-extra-chr".format(plink=plink, bfile=bfile_plink_geno_prefix, minus_strand_file=minus_strand_file, out=bfile_plink_geno_pos_ind_flip_prefix,plink_threads=plink_threads)
 
-pre_hrc_check_entry = MakeEntry(  "{0}/pre_hrc_check.OK".format(outdir_temp), [make_outdir_tmp_cmd, snp_id_command, minus_strand_cmd, extract_snps_geno_filter_cmd, update_pos_ind_cmd, flip_cmd], [], comment = "PRE-HRC CHECKING FORMATING" )
+	pre_hrc_check_entry = MakeEntry(  "{0}/pre_hrc_check.OK".format(outdir_temp), [make_outdir_tmp_cmd, snp_id_command, minus_strand_cmd, extract_snps_geno_filter_cmd, update_pos_ind_cmd, flip_cmd], [], comment = "PRE-HRC CHECKING FORMATING" )
+
+else:
+	bfile_plink_geno_prefix = "{0}/extract.geno".format(outdir_temp)
+	extract_snps_geno_filter_cmd = "{plink} --bfile {bfile} --geno {geno} --make-bed --out {out} --threads {plink_threads} --allow-extra-chr".format(plink=plink, bfile=bfile, geno=geno, out=bfile_plink_geno_prefix,plink_threads=plink_threads)
+	
+	bfile_plink_geno_pos_ind_prefix = "{0}/extract.geno.pos.ind".format(outdir_temp)
+	update_pos_ind_cmd = "{plink} --bfile {bfile} --mind {mind} --make-bed --out {out} --threads {plink_threads} --allow-extra-chr".format(plink=plink, bfile=bfile_plink_geno_prefix, mind=mind, out=bfile_plink_geno_pos_ind_prefix, plink_threads=plink_threads)
+	
+	bfile_plink_geno_pos_ind_flip_prefix = "{0}/extract.geno.pos.ind.flip".format(outdir_temp)
+	flip_cmd = "{plink} --bfile {bfile} --make-bed --freq --out {out} --threads {plink_threads} --allow-extra-chr".format(plink=plink, bfile=bfile_plink_geno_prefix, out=bfile_plink_geno_pos_ind_flip_prefix,plink_threads=plink_threads)
+	
+	pre_hrc_check_entry = MakeEntry(  "{0}/pre_hrc_check.OK".format(outdir_temp), [make_outdir_tmp_cmd, extract_snps_geno_filter_cmd, update_pos_ind_cmd, flip_cmd], [], comment = "PRE-HRC CHECKING FORMATING" )
+	
 
 flip_freq_file = "{0}/extract.geno.pos.ind.flip.frq".format(outdir_temp)
 flip_bim_file = "{0}/extract.geno.pos.ind.flip.bim".format(outdir_temp)
