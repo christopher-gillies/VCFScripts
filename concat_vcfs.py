@@ -22,6 +22,8 @@ parser.add_argument('--vcf_list', help='List of vcf files to concat [chr tab vcf
 parser.add_argument('--sample_list', help='The samples to use', required=True)
 parser.add_argument('--maf', help='minimum minor allele frequency', type=float, required=False, default=0.05)
 parser.add_argument('--threads', help='threads', required=False, type=int, default=2)
+parser.add_argument('--output_type', help='output type [v = vcf, b = bcf, z = gzvcf]', required=False, default='b')
+parser.add_argument('--output_prefix', help='', required=False, default='merged')
 args = parser.parse_args()
 
 print
@@ -42,7 +44,19 @@ outdir = args.outdir
 min_af = maf
 max_af = 1 - maf
 threads = args.threads
+output_type = args.output_type
+output_prefix = args.output_prefix
 
+
+final_output = None
+if output_type == "b":
+	final_output = "{0}/{1}.bcf".format(outdir,output_prefix)
+elif output_type == "z":
+	final_output = "{0}/{1}.vcf.gz".format(outdir,output_prefix)
+else:
+	raise ValueError("Incorrect output type {0}".format(output_type))
+	
+print "FINAL OUTPUT WILL BE: {0}".format(final_output)
 
 print
 print "CREATING MAKEFILE"
@@ -72,9 +86,14 @@ with open(bcf_list,"w") as bcf_h:
 	for vcf in vcfs_to_clear:
 		bcf_h.write(vcf)
 		bcf_h.write("\n")
+			
+concat_cmd = "bcftools concat -f {0} --output-type {3} --output {1} --threads {2}".format(bcf_list,final_output,threads,output_type)
 
-concat_cmd = "bcftools concat -f {0} --output-type b --output {1}/merged.bcf --threads {2}".format(bcf_list,outdir,threads)
-index_cmd = "bcftools index {0}/merged.bcf".format(outdir)
+tabix_args = ""
+if output_type == "z":
+	tabix_args = "-t"
+
+index_cmd = "bcftools index {0} {1}".format(final_output,tabix_args)
 
 concat_entry = MakeEntry(  "{0}/concat.OK".format(outdir), [ concat_cmd, index_cmd ], reorder_entries , comment='Concat command')
 make_entries.append(concat_entry)
